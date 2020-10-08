@@ -1,7 +1,6 @@
 # utility functions
 
 import os
-from os.path import join
 import sys
 
 import numpy as np
@@ -11,10 +10,6 @@ import random
 import scipy.io
 import scipy.sparse as sparse
 from sklearn.metrics import roc_auc_score
-
-proj_path = os.path.abspath('../../../')
-work_path = join(proj_path, '/Users/lekely/alpine/ALPINE_public')
-sys.path.append(work_path)
 
 from cne import maxent
 from cne.cne_known import ConditionalNetworkEmbedding_K
