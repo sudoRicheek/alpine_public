@@ -1,6 +1,6 @@
 # README #
 
-Further updates will be available at: https://github.com/aida-ugent/alpine_public.
+Further updates will be available at: https://github.com/aida-ugent/alpine_public
 
 Source code associated to the paper
 ## ALPINE: Active Link Prediction Using Network Embedding (Under review)
