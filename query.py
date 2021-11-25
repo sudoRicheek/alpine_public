@@ -9,7 +9,7 @@ from sklearn.isotonic import IsotonicRegression
 import scipy.sparse as sparse
 
 
-def pagerank(bgt, step_size, partial_net):
+def pagerank(bgt, step_size, partial_net, edge_wt):
     # pagerank is obtained when setting nan as 0.
     cur_A = partial_net['A'].copy()
     A = np.zeros_like(partial_net['A'])
@@ -29,6 +29,8 @@ def pagerank(bgt, step_size, partial_net):
         l_e = pool_e[i, :]
         utility.append(pg[l_e[0]]+pg[l_e[1]])
 
+    utility = utility * edge_wt
+
     sorted_e_ind = sorted(range(len(utility)), key=lambda k: utility[k], reverse=True)
     if bgt >= step_size:
         inds = sorted_e_ind[:step_size]
@@ -37,7 +39,7 @@ def pagerank(bgt, step_size, partial_net):
     return utility, pool_eid[inds]
 
 
-def degree_sum(bgt, step_size, partial_net):
+def degree_sum(bgt, step_size, partial_net, edge_wt):
     cur_A = partial_net['A'].copy()
     A = np.zeros_like(partial_net['A'])
     n = A.shape[0]
@@ -54,6 +56,8 @@ def degree_sum(bgt, step_size, partial_net):
         l_e = pool_e[i]
         utility.append(degrees[l_e[0]] + degrees[l_e[1]])
 
+    utility = utility * edge_wt
+
     sorted_e_ind = sorted(range(len(utility)), key=lambda k: utility[k], reverse=True)
     if bgt >= step_size:
         inds = sorted_e_ind[:step_size]
@@ -62,11 +66,12 @@ def degree_sum(bgt, step_size, partial_net):
     return utility, pool_eid[inds]
 
 
-def probability(bgt, step_size, partial_net, post_P):
+def probability(bgt, step_size, partial_net, post_P, edge_wt):
     n = partial_net['A'].shape[0]
     pool_eid = partial_net['pool_eid']
     pool_e = eid_to_e(n, pool_eid)
     utility = post_P[pool_e[:, 0], pool_e[:, 1]]
+    utility = utility * edge_wt
     sorted_e_ind = sorted(range(len(utility)), key=lambda k: utility[k], reverse=True)
     if bgt >= step_size:
         inds = sorted_e_ind[:step_size]
@@ -75,7 +80,7 @@ def probability(bgt, step_size, partial_net, post_P):
     return utility, pool_eid[inds]
 
 
-def distance(bgt, step_size, partial_net, X):
+def distance(bgt, step_size, partial_net, X, edge_wt):
     n = partial_net['A'].shape[0]
     utility = []
     pool_eid = partial_net['pool_eid']
@@ -85,6 +90,8 @@ def distance(bgt, step_size, partial_net, X):
         diff = X[l_e[0], :] - X[l_e[1], :]
         utility.append(np.linalg.norm(diff))
 
+    utility = utility * edge_wt
+
     sorted_e_ind = sorted(range(len(utility)), key=lambda k: utility[k], reverse=False)
     if bgt >= step_size:
         inds = sorted_e_ind[:step_size]
@@ -93,7 +100,7 @@ def distance(bgt, step_size, partial_net, X):
     return utility, pool_eid[inds]
 
 
-def entropy(bgt, step_size, partial_net, post_P):
+def entropy(bgt, step_size, partial_net, post_P, edge_wt):
     A = partial_net['A']
     n = A.shape[0]
     pool_eid = partial_net['pool_eid']
@@ -102,6 +109,8 @@ def entropy(bgt, step_size, partial_net, post_P):
 
     P_te = Ps
     utility = -P_te*np.log(P_te) - (1-P_te)*np.log(1-P_te)
+
+    utility = utility * edge_wt
 
     sorted_e_ind = sorted(range(len(utility)), key=lambda k: utility[k], reverse=True)
     if bgt >= step_size:
@@ -125,7 +134,7 @@ def fisher_x_ii_k(partial_net, post_P, X, ne_params, i):
     return FI_ii
 
 
-def d_optimality(bgt, step_size, partial_net, post_P, X, ne_params):
+def d_optimality(bgt, step_size, partial_net, post_P, X, ne_params, edge_wt):
     A = partial_net['A']
     gamma = (1/ne_params['s1']**2 - 1/ne_params['s2']**2)
     n = A.shape[0]
@@ -145,6 +154,8 @@ def d_optimality(bgt, step_size, partial_net, post_P, X, ne_params):
         res_eid = 2*gamma**2*P_ij*(1-P_ij)*tmp*np.linalg.det(I_ij_X)
         utility.append(res_eid)
 
+    utility = utility * edge_wt
+
     sorted_e_ind = sorted(range(len(utility)), key=lambda k: utility[k], reverse=True)
     if bgt >= step_size:
         inds = sorted_e_ind[:step_size]
@@ -153,7 +164,7 @@ def d_optimality(bgt, step_size, partial_net, post_P, X, ne_params):
     return np.array(utility), pool_eid[inds]
 
 
-def v_optimality_k(bgt, step_size, partial_net, post_P, X, ne_params):
+def v_optimality_k(bgt, step_size, partial_net, post_P, X, ne_params, edge_wt):
     A = partial_net['A']
     gamma = (1/ne_params['s1']**2 - 1/ne_params['s2']**2)
     n = A.shape[0]
@@ -193,6 +204,8 @@ def v_optimality_k(bgt, step_size, partial_net, post_P, X, ne_params):
         res_eid = gamma**4*Ps[eid]*(np.sum(score_i) + np.sum(score_j))
         utility.append(res_eid)
 
+    utility = utility * edge_wt
+
     sorted_e_ind = sorted(range(len(utility)), key=lambda k: utility[k], reverse=True)
 
     if bgt >= step_size:
@@ -201,8 +214,42 @@ def v_optimality_k(bgt, step_size, partial_net, post_P, X, ne_params):
         inds = sorted_e_ind[:min(bgt, len(pool_eid))]
     return np.array(utility), pool_eid[inds]
 
+def distance_weight(partial_net, X):
+    A = partial_net['A']
+    n = A.shape[0]
+    pool_eid = partial_net['pool_eid']
+    pool_e = eid_to_e(n, pool_eid)
 
-def get_query(partial_net, post_P, X, step_size, bgt, ne_params, strategy):
+    X_norm_sq = np.linalg.norm(X, axis = 1)**2
+
+    node1_embed = X[pool_e[:,0],:]
+    node2_embed = X[pool_e[:,1],:]
+
+    node11_dot = node1_embed @ node1_embed.T
+    node12_dot = node1_embed @ node2_embed.T
+    node22_dot = node2_embed @ node2_embed.T
+
+    dir1_dot = node11_dot + node22_dot
+    dir2_dot = node12_dot + node12_dot.T
+
+    assert(dir1_dot.shape == (len(pool_eid), len(pool_eid)))
+    assert(dir2_dot.shape == (len(pool_eid), len(pool_eid)))
+
+    dist = np.minimum(dir1_dot, dir2_dot)
+
+    edge_norms = X_norm_sq[pool_e[:,0]] + X_norm_sq[pool_e[:,1]]
+    edge_norms = np.sqrt(edge_norms)
+    norm_prod = edge_norms.T @ edge_norms
+
+    cos_dist = dist / norm_prod
+
+    assert(cos_dist.shape == (len(pool_eid), len(pool_eid)))
+
+    dist_weight = np.mean(cos_dist, axis = 1)
+    return dist_weight
+
+
+def get_query(partial_net, post_P, X, step_size, bgt, ne_params, strategy, use_dist_wt = False):
     print('pool_eid length left', len(partial_net['pool_eid']))
     if strategy == 'random_1' or strategy == 'random_2' or strategy == 'random_3':
         pool_eid = partial_net['pool_eid']
@@ -212,20 +259,24 @@ def get_query(partial_net, post_P, X, step_size, bgt, ne_params, strategy):
         else:
             query = np.array(random.sample(list(set_pool), min(bgt, len(pool_eid))))
     else:
+        if use_dist_wt:
+            wts = distance_weight(partial_net, X)
+        else:
+            wts = np.ones(len(partial_net['pool_eid']))
         if strategy == 'pagerank':
-            utility, query = pagerank(bgt, step_size, partial_net)
+            utility, query = pagerank(bgt, step_size, partial_net, wts)
         elif strategy == 'max_degree_sum':
-            utility, query = degree_sum(bgt, step_size, partial_net)
+            utility, query = degree_sum(bgt, step_size, partial_net, wts)
         elif strategy == 'max_probability':
-            utility, query = probability(bgt, step_size, partial_net, post_P)
+            utility, query = probability(bgt, step_size, partial_net, post_P, wts)
         elif strategy == 'min_distance':
-            utility, query = distance(bgt, step_size, partial_net, X)
+            utility, query = distance(bgt, step_size, partial_net, X, wts)
         elif strategy == 'max_entropy':
-            utility, query = entropy(bgt, step_size, partial_net, post_P)
+            utility, query = entropy(bgt, step_size, partial_net, post_P, wts)
         elif strategy == 'd_optimality':
-            utility, query = d_optimality(bgt, step_size, partial_net, post_P, X, ne_params)
+            utility, query = d_optimality(bgt, step_size, partial_net, post_P, X, ne_params, wts)
         elif strategy == 'v_optimality':
-            utility, query = v_optimality_k(bgt, step_size, partial_net, post_P, X, ne_params)
+            utility, query = v_optimality_k(bgt, step_size, partial_net, post_P, X, ne_params, wts)
         else:
             query = []
     return query

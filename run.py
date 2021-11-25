@@ -30,7 +30,7 @@ def test_for_s(folder_split, partial_net, test_e, y_true, X, post_P, ne_params, 
         print('bgt', bgt)
         y_pred = predict(cur_post_P, test_e)
         score_s.append(eval_prediction(y_true, y_pred, eval_t))
-        query = get_query(cur_partial_net, cur_post_P, cur_X, step_size, bgt, ne_params, s)
+        query = get_query(cur_partial_net, cur_post_P, cur_X, step_size, bgt, ne_params, s, use_dist_wt = True)
         print(s, 'len(query)', len(query), query[-10:], score_s[-1])
 
         cur_partial_net = update_partial_net(cur_partial_net, query, full_A)
