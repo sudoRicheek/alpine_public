@@ -34,7 +34,7 @@ def test_for_s(folder_split, partial_net, test_e, y_true, X, post_P, ne_params, 
         print(s, 'len(query)', len(query), query[-10:], score_s[-1])
 
         cur_partial_net = update_partial_net(cur_partial_net, query, full_A)
-        cur_X, cur_post_P = embed(cur_partial_net, None, ne_params)
+        cur_X, cur_post_P = embed_sine(cur_partial_net, None, ne_params)
         bgt -= len(query)
 
     y_pred = predict(cur_post_P, test_e)
@@ -88,7 +88,7 @@ def one_split_all_s(p, folder_split, full_A, r_0, stp_s, case, bgt_k, pool_size,
     print('budget', budget, 'stp_s', stp_s)
 
     for ne_id in range(nr_ne):
-        X0, post_P0 = memoize(embed, folder_split+'/NE_'+str(ne_id)+'.pkl', refresh=False)(partial_net0, None, ne_params)
+        X0, post_P0 = memoize(embed_sine, folder_split+'/NE_'+str(ne_id)+'.pkl', refresh=False)(partial_net0, None, ne_params)
         res_test_id = p.map(partial(test_for_s, folder_split, partial_net0,
                                     target_e, y_true, X0, post_P0, ne_params,
                                     step_size, budget, strategy, ne_id),

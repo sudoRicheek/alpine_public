@@ -14,6 +14,11 @@ from sklearn.metrics import roc_auc_score
 from cne import maxent
 from cne.cne_known import ConditionalNetworkEmbedding_K
 
+import networkx as nx
+from karateclub import SINE
+
+import liblinear.liblinearutil as liblin
+
 
 def from_cache(cache_file):
     if os.path.exists(cache_file):
@@ -165,6 +170,37 @@ def update_partial_net(partial_net, query, full_A):
                }
     return new_net
 
+def embed_sine(partial_net, *args):
+    cur_A = partial_net['A'].copy()
+    A = np.zeros_like(partial_net['A'])
+    n = A.shape[0]
+    known_eid = partial_net['known_eid']
+    known_e = np.array(eid_to_e(n, known_eid))
+    A[known_e[:, 0], known_e[:, 1]] = cur_A[known_e[:, 0], known_e[:, 1]]
+    A[known_e[:, 1], known_e[:, 0]] = cur_A[known_e[:, 0], known_e[:, 1]]
+
+    print("Computing embeddings using SINE")
+    sine_model = SINE()
+    random_features = sparse.coo_matrix(np.random.rand(n,))
+    sine_model.fit(graph = nx.from_numpy_matrix(np.matrix(A)), X = random_features)
+    X = sine_model.get_embedding()
+
+    # train link prediction classifier
+    print("Training link classifier")
+    labels = A[known_e[:, 0], known_e[:, 1]]
+    features = X[known_e[:, 0]] * X[known_e[:, 1]]
+
+    model  = liblin.train(labels, features)
+
+    # compute probability of link
+    print("Computing link probs")
+    all_pair_pred = np.array([liblin.predict([], X[i,:]*X, model, '-q')[2] for i in range(n)])
+    print("no nodes: ", n)
+    print("pred size: ", all_pair_pred.shape)
+
+    return X, all_pair_pred
+
+
 
 def embed(partial_net, X0, ne_params):
     cur_A = partial_net['A'].copy()
@@ -174,6 +210,8 @@ def embed(partial_net, X0, ne_params):
     te_A = np.zeros_like(partial_net['A'])
     known_eid = partial_net['known_eid']
     known_e = eid_to_e(n, known_eid)
+
+    # fill known entries in te_A
     te_A[known_e[:, 0], known_e[:, 1]] = cur_A[known_e[:, 0], known_e[:, 1]]
     te_A[known_e[:, 1], known_e[:, 0]] = cur_A[known_e[:, 0], known_e[:, 1]]
 
@@ -196,6 +234,8 @@ def embed(partial_net, X0, ne_params):
     cne_model.fit(ftol=1e-4, verbose=False, X0=X0)
 
     X = cne_model.get_embedding()
+
+    # prob of prediction is post_P
     post_P = np.array([cne_model.compute_row_posterior(row_i, range(n)) for row_i in range(n)])
 
     return X, post_P
