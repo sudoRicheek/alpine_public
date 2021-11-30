@@ -29,12 +29,34 @@ Find the report [**here**](report.pdf).
 * PPI_cc: https://snap.stanford.edu/node2vec/ We use its largest connected component.
 * Blog: https://snap.stanford.edu/node2vec/
 
+### Files
+
+```
+alpine_public
+│   README.md
+│   run.py                [For general testing of code] 
+|   query.py              [Contains different querying strategies]
+|   utils.py              [Contains several helper functions]  
+│   exp1.py               [Run Experiment 1]
+│   exp2.py               [Run Experiment 2]
+│   plt_exp1.py           [Plot Experiment 1]
+│   plt_exp2.py           [Plot Experiment 2]
+└───dataset
+│   |   datasets...
+|   
+└───cne
+    │   cne.py            [Conditional Network Embedding]
+    │   cne_known.py      [Conditional Network Embedding Known]
+    |   maxent.py         [Has the operations on prior] 
+```
+
 ### Experiments
 
 **Experiment 1:** Comparison of the **average ROC-AUC** scores achieved by **CNE, CNE_K** and **SINE** as the Node Embedding models in **ALPINE** with respect to the change in **% of network observed**.
    ![Experiment 1](expt1.png "Experiment 1")
 
    To run this experiment: `python3 exp1.py`
+
    To plot: `python3 plt_exp1.py`
 
 
@@ -42,6 +64,7 @@ Find the report [**here**](report.pdf).
    ![Experiment 2](expt2.png "Experiment 2")
 
    To run this experiment: `python3 exp2.py`
+
    To plot: `python3 plt_exp2.py`
 
 <hr/>
