@@ -1,15 +1,20 @@
 # queries
-import networkx as nx
-import numpy as np
-import collections
 import random
-import networkx as nx
-from utils import *
-from sklearn.isotonic import IsotonicRegression
-import scipy.sparse as sparse
+import collections
 
+from utils import *
+
+import numpy as np
+import networkx as nx
+
+"""
+All the querying strategies are implemented here
+"""
 
 def pagerank(bgt, step_size, partial_net, edge_wt):
+    """
+    PageRank query strategy
+    """
     # pagerank is obtained when setting nan as 0.
     cur_A = partial_net['A'].copy()
     A = np.zeros_like(partial_net['A'])
@@ -40,6 +45,9 @@ def pagerank(bgt, step_size, partial_net, edge_wt):
 
 
 def degree_sum(bgt, step_size, partial_net, edge_wt):
+    """
+    Degree sum query strategy
+    """
     cur_A = partial_net['A'].copy()
     A = np.zeros_like(partial_net['A'])
     n = A.shape[0]
@@ -67,12 +75,15 @@ def degree_sum(bgt, step_size, partial_net, edge_wt):
 
 
 def probability(bgt, step_size, partial_net, post_P, edge_wt):
+    """
+    Maximum Probability based query strategy
+    """
     n = partial_net['A'].shape[0]
     pool_eid = partial_net['pool_eid']
     pool_e = eid_to_e(n, pool_eid)
     utility = post_P[pool_e[:, 0], pool_e[:, 1]]
     utility = utility * edge_wt
-    sorted_e_ind = sorted(range(len(utility)), key=lambda k: utility[k], reverse=True)
+    sorted_e_ind = sorted(range(len(utility)), key=lambda k: utility[k].sum(), reverse=True)
     if bgt >= step_size:
         inds = sorted_e_ind[:step_size]
     else:
@@ -81,6 +92,9 @@ def probability(bgt, step_size, partial_net, post_P, edge_wt):
 
 
 def distance(bgt, step_size, partial_net, X, edge_wt):
+    """
+    Minimum distance based query strategy
+    """
     n = partial_net['A'].shape[0]
     utility = []
     pool_eid = partial_net['pool_eid']
@@ -101,6 +115,9 @@ def distance(bgt, step_size, partial_net, X, edge_wt):
 
 
 def entropy(bgt, step_size, partial_net, post_P, edge_wt):
+    """
+    Maximum entropy based query strategy
+    """
     A = partial_net['A']
     n = A.shape[0]
     pool_eid = partial_net['pool_eid']
@@ -135,6 +152,9 @@ def fisher_x_ii_k(partial_net, post_P, X, ne_params, i):
 
 
 def d_optimality(bgt, step_size, partial_net, post_P, X, ne_params, edge_wt):
+    """
+    Parameter Variance reduction strategy
+    """
     A = partial_net['A']
     gamma = (1/ne_params['s1']**2 - 1/ne_params['s2']**2)
     n = A.shape[0]
@@ -165,6 +185,9 @@ def d_optimality(bgt, step_size, partial_net, post_P, X, ne_params, edge_wt):
 
 
 def v_optimality_k(bgt, step_size, partial_net, post_P, X, ne_params, edge_wt):
+    """
+    Prediction Variance reduction strategy
+    """
     A = partial_net['A']
     gamma = (1/ne_params['s1']**2 - 1/ne_params['s2']**2)
     n = A.shape[0]
@@ -215,6 +238,10 @@ def v_optimality_k(bgt, step_size, partial_net, post_P, X, ne_params, edge_wt):
     return np.array(utility), pool_eid[inds]
 
 def distance_weight(partial_net, X):
+    """
+    Information Density technique with 
+    cosine-similarity distance weighting. 
+    """
     A = partial_net['A']
     n = A.shape[0]
     pool_eid = partial_net['pool_eid']

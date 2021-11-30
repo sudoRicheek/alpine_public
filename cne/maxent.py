@@ -8,9 +8,11 @@ import sys
 import numpy as np
 import scipy.sparse as sparse
 from scipy.optimize import minimize
-from scipy.optimize import check_grad
 
 class BGDistr(object):
+    """
+    Stores the prior distribution
+    """
 
     def __init__(self, *args, **kwargs):
         super(BGDistr, self).__init__()

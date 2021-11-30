@@ -1,11 +1,13 @@
 from collections import defaultdict
 
 import numpy as np
-from sklearn.metrics import roc_auc_score
 import scipy.sparse as sparse
 
 class ConditionalNetworkEmbedding:
     def __init__(self, A, ne_params, known_e, known_dic, partial_net, prior=None):
+        """
+        Initialise the CNE Model
+        """
         self.__A = sparse.csr_matrix(A)
         self.__d = ne_params['d']
         self.__s1 = ne_params['s1']
@@ -17,6 +19,10 @@ class ConditionalNetworkEmbedding:
         self.__prior_dist = prior
 
     def _obj_grad(self, X, A, prior_dist, s_div, s_diff):
+        """
+        The gradient for gradient descent for maximising 
+        the P(G|X) wrt X, Maximum Likelihood estimate
+        """
         res_obj = 0.
         res_grad = np.zeros_like(X)
         n = X.shape[0]
@@ -36,14 +42,21 @@ class ConditionalNetworkEmbedding:
             grad = s_diff*(grad_coeff*diff).T
             res_grad[xid, :] += np.sum(grad, axis=0)
             res_grad -= grad
+
         return -res_obj, -res_grad
 
     def _row_posterior(self, row_id, col_ids, X, prior, s_div, s_diff):
+        """
+        Get the row-wise probabilities of posterior
+        """
         prior = prior.get_row_probability(row_id, col_ids)
         d_p2 = np.sum(((X[row_id, :] - X[col_ids, :]).T)**2, axis=0)
         return self._posterior(1, d_p2, prior, s_div, s_diff)
 
     def _posterior(self, obs_val, d_p2, prior, s_div, s_diff):
+        """
+        Get the full posterior
+        """
         if obs_val == 1:
             return 1./(1+(1-prior)/prior*s_div*np.exp(d_p2/2*s_diff))
         else:
@@ -52,6 +65,9 @@ class ConditionalNetworkEmbedding:
     def _optimizer_adam(self, X, A, prior_dist, s_div, s_diff, num_epochs=2000,
                         alpha=0.2, beta_1=0.9, beta_2=0.9999, eps=1e-8,
                         ftol=1e-7, verbose=False):
+        """
+        Calculate the gradient and perform gradient descent with Adam optimizer
+        """
         m_prev = np.zeros_like(X)
         v_prev = np.zeros_like(X)
         obj_old = 0.
@@ -83,6 +99,9 @@ class ConditionalNetworkEmbedding:
         return X
 
     def fit(self, ftol=1e-7, verbose=False, X0=None):
+        """
+        Fit the data to the CNE model and run the optimizer
+        """
         if X0 is None:
             X = np.random.randn(self.__A.shape[0], self.__d)
         else:
@@ -94,6 +113,10 @@ class ConditionalNetworkEmbedding:
                                           ftol=ftol, verbose=verbose)
 
     def predict(self, E):
+        """
+        Use the embeddings generated from the fit() function to 
+        generate a posterior distribution over the unseen edges
+        """
         edge_dict = defaultdict(list)
         ids_dict = defaultdict(list)
         for i, edge in enumerate(E):
@@ -109,7 +132,13 @@ class ConditionalNetworkEmbedding:
         return [p for _, p in sorted(zip(ids, pred))]
 
     def get_embedding(self):
+        """
+        Returns the embeddings
+        """
         return self.__emb
 
     def compute_row_posterior(self, row_id, col_ids):
+        """
+        Gets the specified row of the posterior distribution
+        """
         return self._row_posterior(row_id, col_ids, self.__emb, self.__prior_dist, self.__s_div, self.__s_diff)

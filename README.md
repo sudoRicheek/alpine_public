@@ -1,21 +1,26 @@
-# README #
+# Active Learning using Node Embeddings in Partially Observed Networks. 
 
-Further updates will be available at: https://github.com/aida-ugent/alpine_public
+Work done as a part of **CS768 - Learning With Graphs [Autumn' 21]**.
 
-Source code associated to the paper
-## ALPINE: Active Link Prediction Using Network Embedding (Under review)
+Find the report [**here**](report.pdf).
 
-### Requirements:
-* Python 3.6+
-* numpy 1.15.3
-* scipy 1.1.0
-* pandas 0.23.4
-* matplotlib 3.0.0
+### Team Information:
+
+| Name                | Contact                    |
+| -----------         | -----------                |
+| Richeek Das         | richeek@cse.iitb.ac.in     |
+| Saumya Goyal        | saumyagoyal@cse.iitb.ac.in |
+| Tirthankar Adhikari | 190070003@iitb.ac.in       |
+
+### Requirements [Tested On]:
+* numpy 1.20.0
+* scipy 1.7.1
+* pandas 1.3.2
+* matplotlib 3.4.3
 * Conditional Network Embedding (modified from https://bitbucket.org/ghentdatascience/cne)
 
-
 ### Datasets
-* The Harry Potter network: https://github.com/efekarakus/potter-network
+* The Harry Potter **network**: https://github.com/efekarakus/potter-network
 * Polbooks: http://www-personal.umich.edu/~mejn/netdata/
 * C.elegans: http://www-personal.umich.edu/~mejn/netdata/
 * USAir http://vlado.fmf.uni-lj.si/pub/networks/data/
@@ -23,6 +28,23 @@ Source code associated to the paper
 * Polblogs_cc: http://www-personal.umich.edu/~mejn/netdata/ We use its largest connected component.
 * PPI_cc: https://snap.stanford.edu/node2vec/ We use its largest connected component.
 * Blog: https://snap.stanford.edu/node2vec/
+
+### Experiments
+
+**Experiment 1:** Comparison of the **average ROC-AUC** scores achieved by **CNE, CNE_K** and **SINE** as the Node Embedding models in **ALPINE** with respect to the change in **% of network observed**.
+   ![Experiment 1](expt1.png "Experiment 1")
+
+   To run this experiment: `python3 exp1.py`
+   To plot: `python3 plt_exp1.py`
+
+
+**Experiment 2:** Comparison of the **average ROC-AUC** scores achieved by **CNE_K** as the Node Embedding model with respect to the different querying strategies implemented, with and without the Information Density weighting addition.
+   ![Experiment 2](expt2.png "Experiment 2")
+
+   To run this experiment: `python3 exp2.py`
+   To plot: `python3 plt_exp2.py`
+
+<hr/>
 
 ### Run
 1. Select and load a dataset in run.py.
@@ -38,3 +60,7 @@ The results are visualized in the 'folder' defined for the this experiment named
 * Case-1 - 'TU_PU_r0...'
 * Case-2 - 'TU_r0...'
 * Case-3 - 'r0_...'
+
+<hr/>
+
+### Forked from [parent](https://github.com/aida-ugent/alpine_public) repository

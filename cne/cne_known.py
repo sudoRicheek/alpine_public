@@ -1,8 +1,10 @@
+import numpy as np
+
 from collections import defaultdict
 
-import numpy as np
-from sklearn.metrics import roc_auc_score
-import scipy.sparse as sparse
+"""
+This is the implementation of the CNE-Known model
+"""
 
 class ConditionalNetworkEmbedding_K:
     def __init__(self, A, ne_params, known_e, known_dic, partial_net, prior=None):
@@ -18,6 +20,10 @@ class ConditionalNetworkEmbedding_K:
         self.__known_dic = known_dic
 
     def _obj_grad(self, X, A, prior, s_div, s_diff):
+        """
+        Calculate the gradient for maximum likelihood estimation
+        keeping the knowns in consideration.
+        """
         res_obj = 0.
         res_grad = np.zeros_like(X)
         n = X.shape[0]

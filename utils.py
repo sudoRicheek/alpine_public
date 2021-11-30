@@ -1,7 +1,5 @@
 # utility functions
-
 import os
-import sys
 
 import numpy as np
 import collections
@@ -12,6 +10,7 @@ import scipy.sparse as sparse
 from sklearn.metrics import roc_auc_score
 
 from cne import maxent
+from cne.cne import ConditionalNetworkEmbedding
 from cne.cne_known import ConditionalNetworkEmbedding_K
 
 import networkx as nx
@@ -21,6 +20,9 @@ import liblinear.liblinearutil as liblin
 
 
 def from_cache(cache_file):
+    """
+    Retreive the data splits from cache
+    """
     if os.path.exists(cache_file):
         with open(cache_file, 'rb') as f:
             data = pickle.load(f)
@@ -30,11 +32,17 @@ def from_cache(cache_file):
 
 
 def to_cache(cache_file, data):
+    """
+    Cache the data splits
+    """
     with open(cache_file, 'wb') as f:
         pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
 
 
 def memoize(func, cache_file, refresh=False):
+    """
+    Handles the to_cache and from_cache operations
+    """
     def memoized_func(*args):
         result = from_cache(cache_file)
         if result is None or refresh is True:
@@ -45,6 +53,9 @@ def memoize(func, cache_file, refresh=False):
 
 
 def eid_to_e(n, eid):
+    """
+    edge ids to a np array
+    """
     # edge list is np.array
     col = eid%n
     row = eid//n
@@ -52,11 +63,17 @@ def eid_to_e(n, eid):
 
 
 def e_to_eid(n, e):
+    """
+    np array to edge ids
+    """
     # eids is np.array
     return n*np.array(e)[:, 0] + np.array(e)[:, 1]
 
 
 def from_csr_matrix_to_edgelist(csr_A):
+    """
+    Get edge list from Sparse matrix
+    """
     csr_A = sparse.triu(csr_A, 1).tocsr()
     t_list = csr_A.indices
     h_list = np.zeros_like(t_list).astype(int)
@@ -66,6 +83,9 @@ def from_csr_matrix_to_edgelist(csr_A):
 
 
 def generate_S0(A, S0_r):
+    """
+    Dataset split generation
+    """
     # for Case-1&2 with T=U
     n = A.shape[0]
     m = 0.5*n*(n-1)
@@ -89,6 +109,9 @@ def generate_S0(A, S0_r):
 
 
 def split_node_pairs(A, S0_r, target_size):
+    """
+    Dataset split generation
+    """
     # for Case-3
     n = A.shape[0]
     m = 0.5*n*(n-1)
@@ -125,6 +148,9 @@ def split_node_pairs(A, S0_r, target_size):
 
 
 def get_partial_net(full_A, known_eid, unknown_eid, pool_eid=None, target_eid=None):
+    """
+    Construct the partial network as a dictionary
+    """
     n = full_A.shape[0]
     partial_A = full_A.copy()
     if pool_eid is None:
@@ -152,6 +178,9 @@ def get_partial_net(full_A, known_eid, unknown_eid, pool_eid=None, target_eid=No
 
 
 def update_partial_net(partial_net, query, full_A):
+    """
+    Update the partial net dictionary with the query results
+    """
     n = full_A.shape[0]
     known_dic = partial_net['known_dic'].copy()
     query_e = eid_to_e(n, query)
@@ -171,6 +200,14 @@ def update_partial_net(partial_net, query, full_A):
     return new_net
 
 def embed_sine(partial_net, *args):
+    """
+    - Fit a SINE model.
+    - Get the embeddings from the SINE model.
+    - Train a link prediction classifier.
+    - Get the probabilities of the links appearing in
+      the unobserved part as a probability distribution.
+    - Return the embeddings and the link probability distribution.
+    """
     cur_A = partial_net['A'].copy()
     A = np.zeros_like(partial_net['A'])
     n = A.shape[0]
@@ -202,7 +239,14 @@ def embed_sine(partial_net, *args):
 
 
 
-def embed(partial_net, X0, ne_params):
+def embed_cne_k(partial_net, X0, ne_params):
+    """
+    - Build the prior distribution of the network with a degree prior
+    - Build a CNE_K model and fit the prior distribution
+    - Generate the embeddings from the CNE_K model
+    - Generate the posterior distribution from the CNE_K model
+    - Return the embeddings and posterior distribution
+    """
     cur_A = partial_net['A'].copy()
     n = cur_A.shape[0]
     known_dic = partial_net['known_dic']
@@ -240,12 +284,66 @@ def embed(partial_net, X0, ne_params):
 
     return X, post_P
 
+def embed_cne(partial_net, X0, ne_params):
+    """
+    - Build the prior distribution of the network with a degree prior
+    - Build a CNE model and fit the prior distribution
+    - Generate the embeddings from the CNE model
+    - Generate the posterior distribution from the CNE model
+    - Return the embeddings and posterior distribution
+    """
+    cur_A = partial_net['A'].copy()
+    n = cur_A.shape[0]
+    known_dic = partial_net['known_dic']
+
+    te_A = np.zeros_like(partial_net['A'])
+    known_eid = partial_net['known_eid']
+    known_e = eid_to_e(n, known_eid)
+
+    # fill known entries in te_A
+    te_A[known_e[:, 0], known_e[:, 1]] = cur_A[known_e[:, 0], known_e[:, 1]]
+    te_A[known_e[:, 1], known_e[:, 0]] = cur_A[known_e[:, 0], known_e[:, 1]]
+
+    # degree prior after Laplace smoothing
+    unknown_eid = partial_net['u_eid']
+    unknowns_e = eid_to_e(n, unknown_eid)
+    A_temp = te_A.copy()
+    if len(unknowns_e) != 0:
+        N = 0.01
+        f = np.sum(te_A)/(n*(n-1))
+        A_temp = (A_temp-1)*(-f*N)/(1+N) + A_temp*(1+f*N)/(1+N)
+        A_temp[unknowns_e[:, 0], unknowns_e[:, 1]] = f
+        A_temp[unknowns_e[:, 1], unknowns_e[:, 0]] = f
+        A_temp -= np.diag(np.diag(A_temp))
+    prior = maxent.BGDistr(A_temp, datasource='custom')
+    prior.fit(undirected=True, iterations=100, method='L-BFGS-B', verbose=False)
+
+    # Use CNE to fit everything
+    cne_model = ConditionalNetworkEmbedding(A_temp, ne_params, known_e, known_dic, partial_net, prior=prior)
+    cne_model.fit(ftol=1e-4, verbose=False, X0=X0)
+
+    X = cne_model.get_embedding()
+
+    # prob of prediction is post_P
+    post_P = np.array([cne_model.compute_row_posterior(row_i, range(n)) for row_i in range(n)])
+
+
+    print("no nodes: ", n)
+    print("post_P: ", post_P.shape)
+
+    return X, post_P
+
+
 
 def predict(post_P, e):
     return post_P[e[:, 0], e[:, 1]]
 
 
 def eval_prediction(y_true, y_pred, type):
+    """
+    Options to select netween the uncertainty evaluation and 
+    ROC-AUC score.
+    """
     if type == 0:
         s = np.sum(np.log((-1)**y_true * (1 - y_true - y_pred)))
     elif type == 1:
@@ -256,6 +354,9 @@ def eval_prediction(y_true, y_pred, type):
 
 
 def load_data(dataname):
+    """
+    Load data from cache.
+    """
     if dataname == 'polbooks':
         full_A = scipy.io.loadmat('./dataset/polbooks.mat')
         full_A = full_A['Problem'][0]['A'][0]
@@ -285,16 +386,31 @@ def load_data(dataname):
 
 
 def strategy_collections():
-    strategy = ['random_1', 'random_2', 'random_3',
-                'pagerank', 'max_degree_sum',
-                'max_probability', 'min_distance',
+    """
+    The list of strategies and labels available in query.py
+    """
+    strategy = [
+                'random_1', 
+                'random_2', 
+                'random_3',
+                'pagerank', 
+                'max_degree_sum',
+                'max_probability', 
+                'min_distance',
                 'max_entropy',
-                'd_optimality', 'v_optimality'
+                # 'd_optimality', 
+                # 'v_optimality'
                 ]
-    labels = ['rand.',
-              'page_rank.', 'max_deg_s.',
-              'max-prob.', 'min-dis.',
+    labels = [
+              'rand.',    
+              'rand.',    
+              'rand.',    
+              'page_rank.', 
+              'max_deg_s.',
+              'max-prob.', 
+              'min-dis.',
               'max-ent.',
-              'd-opt.', 'v-opt.'
+            #   'd-opt.', 
+            #   'v-opt.'
               ]
     return strategy, labels
